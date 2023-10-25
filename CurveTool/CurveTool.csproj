@@ -1,0 +1,49 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net6.0-windows</TargetFramework>
+        <Nullable>enable</Nullable>
+        <UseWPF>true</UseWPF>
+        <ApplicationIcon>logo.ico</ApplicationIcon>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Resource Include="logo.ico" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
+        <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.39" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+        <PackageReference Include="NPOI" Version="2.6.2" />
+        <PackageReference Include="OxyPlot.Wpf" Version="2.1.2" />
+        <PackageReference Include="Panuon.WPF.UI" Version="1.1.16.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Reference Include="Common">
+            <HintPath>..\..\..\..\Program Files (x86)\SLAN全自动医用PCR分析系统 8.2.2\Common.dll</HintPath>
+        </Reference>
+        <Reference Include="device">
+            <HintPath>..\..\..\..\Program Files (x86)\SLAN全自动医用PCR分析系统 8.2.2\device.dll</HintPath>
+        </Reference>
+        <Reference Include="SExperiment">
+            <HintPath>..\..\..\..\Program Files (x86)\SLAN全自动医用PCR分析系统 8.2.2\SExperiment.dll</HintPath>
+        </Reference>
+        <Reference Include="SProject">
+          <HintPath>..\..\..\..\Program Files (x86)\SLAN全自动医用PCR分析系统 8.2.2\SProject.dll</HintPath>
+        </Reference>
+        <Reference Include="SSettings">
+          <HintPath>..\..\..\..\Program Files (x86)\SLAN全自动医用PCR分析系统 8.2.2\SSettings.dll</HintPath>
+        </Reference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Update="AssemblyInfo.cs">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Compile>
+    </ItemGroup>
+
+
+</Project>
