@@ -82,7 +82,6 @@ public partial class XlsxToExpViewModel : ObservableObject
         var listSheet = new List<string> { "Raw Data", "Calibrated Data", "Amplification Data" };
         var json = File.ReadAllText(ExpPath);
         foreach (var sheetName in listSheet)
-        {
             try
             {
                 // 使用FileStream打开Excel文件
@@ -97,7 +96,7 @@ public partial class XlsxToExpViewModel : ObservableObject
                     if (sheet != null)
                     {
                         var newDataList = new List<string>();
-                        
+
                         // 获取指定sheet的内容并添加到list集合
                         // 遍历列
                         for (var columnIndex = 1; columnIndex < sheet.GetRow(0).LastCellNum; columnIndex++)
@@ -121,7 +120,7 @@ public partial class XlsxToExpViewModel : ObservableObject
                                 }
                             }
 
-                            newDataList.Add(data.TrimEnd());//删除最后一个空格
+                            newDataList.Add(data.TrimEnd()); //删除最后一个空格
                         }
 
                         // 使用正则表达式查找目标 JSON 结构
@@ -164,7 +163,7 @@ public partial class XlsxToExpViewModel : ObservableObject
                     MessageBoxIcon.Error, DefaultButton.YesOK);
                 return;
             }
-        }
+
         // 保存更新后的文本文件
         File.WriteAllText(NewExpPath, json);
         MessageBoxX.Show(Application.Current.MainWindow, "新Exp文件已生成！", "提示", MessageBoxButton.OK,

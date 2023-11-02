@@ -98,7 +98,7 @@
         BasedOn="{StaticResource {x:Static purs:StyleKeys.ButtonStyle}}"
         TargetType="Button">
         <Setter Property="Height" Value="35" />
-        <Setter Property="Width" Value="120" />
+        <Setter Property="Width" Value="180" />
         <Setter Property="FontSize" Value="20" />
         <Setter Property="Margin" Value="10" />
         <Setter Property="HorizontalAlignment" Value="Center" />

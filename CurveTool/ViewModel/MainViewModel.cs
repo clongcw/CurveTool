@@ -52,7 +52,6 @@ public partial class MainViewModel : ObservableObject
             case "iGenPad":
                 Content = Exp;
                 break;
-
         }
     }
 
