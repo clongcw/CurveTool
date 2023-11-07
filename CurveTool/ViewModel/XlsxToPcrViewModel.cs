@@ -36,7 +36,7 @@ public partial class XlsxToPcrViewModel : ObservableObject
 {
     //[ObservableProperty] private string _excelPath = Environment.CurrentDirectory + @"\Pcr\";
     [ObservableProperty] private string _excelPath = @"C:\Users\63214\Desktop\2023-10-08_留样试剂验证测试.xlsx";
-    [ObservableProperty] private string _excelFolderPath = @"C:\Users\63214\Desktop\";
+    [ObservableProperty] private string _excelFolderPath = @"C:\Users\63214\Desktop\Excel";
     [ObservableProperty] private Experiment _experiment;
     [ObservableProperty] private double _ctBefore = 0;
     [ObservableProperty] private double _ctAfter = 0;
@@ -60,8 +60,9 @@ public partial class XlsxToPcrViewModel : ObservableObject
     [ObservableProperty] private string _newPcrPath = Environment.CurrentDirectory + @"\Pcr\02.pcr";
 
     //[ObservableProperty] private string _pcrPath = Environment.CurrentDirectory + @"\Pcr\";
-    [ObservableProperty] private string _pcrPath = @"C:\Users\63214\Desktop\2023-10-08_留样试剂验证测试.pcr";
+    [ObservableProperty] private string _pcrPath = @"C:\Users\63214\Desktop\Excel\CLR013-JM1&JM14-30-19121801.pcr";
     [ObservableProperty] private List<double>[,] _rawData = new List<double>[96, 6];
+    //[ObservableProperty] private AsyncRelayCommand _batchGenerateNewPcrFileCommand;
 
 
     public XlsxToPcrViewModel()
@@ -84,6 +85,8 @@ public partial class XlsxToPcrViewModel : ObservableObject
         PcrRawCurveChangeAfter = rawchangebefore2;
 
         #endregion
+
+        //BatchGenerateNewPcrFileCommand = new AsyncRelayCommand(BatchGenerateNewPcrFile);
     }
 
     #region 选择文件与导出
@@ -131,110 +134,120 @@ public partial class XlsxToPcrViewModel : ObservableObject
 
     #endregion
 
-
     [RelayCommand]
     public async Task BatchGenerateNewPcrFile()
     {
-        // 检查文件夹是否存在
-        if (Directory.Exists(ExcelFolderPath))
+        await Task.Run(async () =>
         {
-            // 获取文件夹中的所有.xlsx文件
-            var xlsxFiles = Directory.GetFiles(ExcelFolderPath, "*.xlsx");
-
-            try
+            // 检查文件夹是否存在
+            if (Directory.Exists(ExcelFolderPath))
             {
-                for (var q = 0; q < xlsxFiles.Length; q++)
+                try
                 {
-                    ListPcrAmpCurves.Clear();
-                    ListExcelAmpCurves.Clear();
-                    ListPcrRawCurves.Clear();
-                    ListExcelRawCurves.Clear();
-                    //获取原始数据字节数组,及原始曲线
-                    GetRawData(false, false);
-                    //获取调整前扩增曲线
-                    foreach (var well in Experiment.Wells)
-                        if (well.Sample != null)
-                            AMPCurveCal(well, well.Project, false, "调整前");
-
-                    //读取excel
-                    ReadExcelData(xlsxFiles[q]);
-
-                    foreach (var well in Experiment.Wells)
-                        if (well.Sample != null)
-                            for (var i = 0; i < ListExcelRawCurves.Count; i++)
-                            for (var j = 0; j < well.Targets.Count; j++)
-                                if (well.CellName == ListExcelRawCurves[i][0] &&
-                                    well.Targets[j].Dye == ListExcelRawCurves[i][2])
-                                {
-                                    var wellIndex = GetWellIndex(ListExcelRawCurves[i][0]) - 1;
-                                    List<double> sublist = new();
-                                    //for (int k = 3; k < ListExcelRawCurves[i].Count; k++)
-                                    for (var k = 4; k < 44; k++)
-                                        sublist.Add(Convert.ToDouble(ListExcelRawCurves[i][k]));
-
-                                    var target = well.Targets[j].ChannelNo - 1;
-                                    sublist.Sort();
-                                    RawData[wellIndex, target] = sublist;
-                                }
-
-
-                    var list = Experiment.Device.RawData;
-                    for (var i = 0; i < list.Count; i++)
+                    // 获取文件夹中的所有.xlsx文件
+                    var xlsxFiles = Directory.GetFiles(ExcelFolderPath, "*.xlsx");
+                    for (var q = 0; q < xlsxFiles.Length; q++)
                     {
-                        FluorescenceData[,] array2 = list[i];
-                        for (var k = 0; k < 96; k++)
-                        for (var l = 0; l < 6; l++)
-                            if (Experiment.Device.Calibration.Count == 6)
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            // 在UI线程上更新CollectionView的SourceCollection
+                            ListPcrAmpCurves.Clear();
+                            ListExcelAmpCurves.Clear();
+                            ListPcrRawCurves.Clear();
+                            ListExcelRawCurves.Clear();
+                        });
+
+
+                        //获取原始数据字节数组,及原始曲线
+                        await GetRawData(false, false);
+                        //获取调整前扩增曲线
+                        Task.Run(async () =>
+                        {
+                            foreach (var well in Experiment.Wells)
+                                if (well.Sample != null)
+                                    await AMPCurveCal(well, well.Project, false, "调整前");
+                        });
+
+                        //读取excel
+                        await ReadExcelData(xlsxFiles[q]);
+
+                        Task.Run(async () =>
+                        {
+                            foreach (var well in Experiment.Wells)
+                                if (well.Sample != null)
+                                    for (var i = 0; i < ListExcelRawCurves.Count; i++)
+                                    for (var j = 0; j < well.Targets.Count; j++)
+                                        if (well.CellName == ListExcelRawCurves[i][0] &&
+                                            well.Targets[j].Dye == ListExcelRawCurves[i][2])
+                                        {
+                                            var wellIndex = GetWellIndex(ListExcelRawCurves[i][0]) - 1;
+                                            List<double> sublist = new();
+                                            //for (int k = 3; k < ListExcelRawCurves[i].Count; k++)
+                                            for (var k = 4; k < 44; k++)
+                                                sublist.Add(Convert.ToDouble(ListExcelRawCurves[i][k]));
+
+                                            var target = well.Targets[j].ChannelNo - 1;
+                                            sublist.Sort();
+                                            RawData[wellIndex, target] = sublist;
+                                        }
+
+
+                            var list = Experiment.Device.RawData;
+                            for (var i = 0; i < list.Count; i++)
                             {
-                                var num = RawData[k, l][i];
-                                var array3 = Experiment.Device.Calibration[l];
-                                if (array3.Count() == 98 && num > -50.0 && array3[k] != 255 && array3[k] != 0 &&
-                                    Experiment.Device.DarkCurrent[l] != 255)
-                                {
-                                    var num2 = array3[k] / 100.0;
-                                    var num3 = (array3[96] * 256 + array3[97]) / 1000.0;
-                                    num = num / num3 / num2 + Experiment.Device.DarkCurrent[l] / 10.0;
-                                }
+                                FluorescenceData[,] array2 = list[i];
+                                for (var k = 0; k < 96; k++)
+                                for (var l = 0; l < 6; l++)
+                                    if (Experiment.Device.Calibration.Count == 6)
+                                    {
+                                        var num = RawData[k, l][i];
+                                        var array3 = Experiment.Device.Calibration[l];
+                                        if (array3.Count() == 98 && num > -50.0 && array3[k] != 255 && array3[k] != 0 &&
+                                            Experiment.Device.DarkCurrent[l] != 255)
+                                        {
+                                            var num2 = array3[k] / 100.0;
+                                            var num3 = (array3[96] * 256 + array3[97]) / 1000.0;
+                                            num = num / num3 / num2 + Experiment.Device.DarkCurrent[l] / 10.0;
+                                        }
 
-                                array2[k, l] = DeviceUtility.Conversion(num);
-                                list[i][k, l] = array2[k, l];
+                                        array2[k, l] = DeviceUtility.Conversion(num);
+                                        list[i][k, l] = array2[k, l];
+                                    }
                             }
+                        });
+
+                        if (File.Exists(ChangeFileExtension(xlsxFiles[q], ".pcr")))
+                        {
+                            File.Delete(ChangeFileExtension(xlsxFiles[q], ".pcr"));
+                            Console.WriteLine("文件已删除。");
+                        }
+
+                        Experiment.Save(ChangeFileExtension(xlsxFiles[q], ".pcr"));
+
+                        Schedule = (double)(q + 1) / xlsxFiles.Length * 100d;
                     }
 
-                    if (File.Exists(ChangeFileExtension(xlsxFiles[q], ".pcr")))
+                    Application.Current.Dispatcher.Invoke(() =>
                     {
-                        File.Delete(ChangeFileExtension(xlsxFiles[q], ".pcr"));
-                        Console.WriteLine("文件已删除。");
-                    }
-
-                    Experiment.Save(ChangeFileExtension(xlsxFiles[q], ".pcr"));
-                    await Task.Delay(1);
-
-                    Schedule = (double)(q + 1) / xlsxFiles.Length * 100d;
+                        MessageBoxX.Show(Application.Current.MainWindow, "新Pcr文件已生成！", "提示", MessageBoxButton.OK,
+                            MessageBoxIcon.Success, DefaultButton.YesOK, 5);
+                    });
                 }
-
-
-                Application.Current.Dispatcher.Invoke(() =>
+                catch (Exception ex)
                 {
-                    MessageBoxX.Show(Application.Current.MainWindow, "新Pcr文件已生成！", "提示", MessageBoxButton.OK,
-                        MessageBoxIcon.Success, DefaultButton.YesOK, 5);
-                });
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        MessageBoxX.Show(Application.Current.MainWindow, ex.Message, "错误提示", MessageBoxButton.OK,
+                            MessageBoxIcon.Error, DefaultButton.YesOK);
+                    });
+                    return;
+                }
             }
-            catch (Exception ex)
+            else
             {
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    MessageBoxX.Show(Application.Current.MainWindow, ex.Message, "错误提示", MessageBoxButton.OK,
-                        MessageBoxIcon.Error, DefaultButton.YesOK);
-                });
-
-                return;
+                Console.WriteLine("指定的文件夹路径不存在.");
             }
-        }
-        else
-        {
-            Console.WriteLine("指定的文件夹路径不存在.");
-        }
+        });
     }
 
     public string ChangeFileExtension(string filePath, string newExtension)
@@ -254,7 +267,7 @@ public partial class XlsxToPcrViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public void GenerateNewPcrFile()
+    public async Task GenerateNewPcrFile()
     {
         try
         {
@@ -267,7 +280,7 @@ public partial class XlsxToPcrViewModel : ObservableObject
             //获取调整前扩增曲线
             foreach (var well in Experiment.Wells)
                 if (well.Sample != null)
-                    AMPCurveCal(well, well.Project, false, "调整前");
+                    await AMPCurveCal(well, well.Project, false, "调整前");
 
             //读取excel
             ReadExcelData(ExcelPath);
@@ -528,7 +541,7 @@ public partial class XlsxToPcrViewModel : ObservableObject
                                             { X = j - 2, Y = Convert.ToDouble(ListPcrAmpCurves[i][j]) });
 
                                     CtBefore = MathCommon.Ct_cal(curve, well.Project.BasicOption.Items[l].Threshold);
-
+                                    CtBefore = double.Parse(CtBefore.ToString("F2"));
                                     return;
                                 }
                 }
@@ -596,7 +609,7 @@ public partial class XlsxToPcrViewModel : ObservableObject
                                             { X = j - 2, Y = Convert.ToDouble(ListExcelAmpCurves[i][j]) });
 
                                     CtAfter = MathCommon.Ct_cal(curve, well.Project.BasicOption.Items[l].Threshold);
-
+                                    CtAfter = double.Parse(CtAfter.ToString("F2"));
 
                                     return;
                                 }
@@ -675,7 +688,7 @@ public partial class XlsxToPcrViewModel : ObservableObject
                         {
                             if (item.DigitalFilter == EDigitalFilter.High)
                                 for (var j = 0; j < 3; j++)
-                                    curve = MathCommon.CurveSmooth(curve);
+                                    curve = await MathCommon.CurveSmooth(curve);
 
                             if (Experiment.Type == EProjectType.TQ)
                             {
@@ -693,13 +706,13 @@ public partial class XlsxToPcrViewModel : ObservableObject
                                 num = curveParameter.BeginBaseline;
                                 num2 = curveParameter.EndBaseline;
                                 if (eoptionzationMode != EOptionzationMode.OPTIMIZATION_NA)
-                                    MathCommon.Baseline(num, num2, curve);
+                                    await MathCommon.Baseline(num, num2, curve);
 
                                 flag = true;
                             }
 
                             if (eoptionzationMode == EOptionzationMode.OPTIMIZATION_MANUAL && !flag)
-                                MathCommon.Baseline(num, num2, curve);
+                                await MathCommon.Baseline(num, num2, curve);
 
                             if (eoptionzationMode == EOptionzationMode.OPTIMIZATION_AUTO && !flag)
                             {
@@ -822,7 +835,7 @@ public partial class XlsxToPcrViewModel : ObservableObject
                                     if (num < 1) num = 1;
                                 }
 
-                                MathCommon.Baseline(num, num2, curve);
+                                await MathCommon.Baseline(num, num2, curve);
                                 if (Experiment.Type == EProjectType.IA &&
                                     Experiment.ExperimentSetting.AMPAlgorithm == EAMPAlgorithm.Subtraction)
                                 {
@@ -841,7 +854,7 @@ public partial class XlsxToPcrViewModel : ObservableObject
                                     if (flag3)
                                     {
                                         num2 = curve.CurvePoint.Count;
-                                        MathCommon.Baseline(num, num2, curve);
+                                        await MathCommon.Baseline(num, num2, curve);
                                     }
                                 }
                             }
@@ -894,7 +907,7 @@ public partial class XlsxToPcrViewModel : ObservableObject
 
                             if (item.DigitalFilter == EDigitalFilter.Normal)
                                 for (var num23 = 0; num23 < 3; num23++)
-                                    curve = MathCommon.CurveSmooth(curve);
+                                    curve = await MathCommon.CurveSmooth(curve);
 
                             if (item.DigitalFilter == EDigitalFilter.High)
                             {
@@ -933,7 +946,7 @@ public partial class XlsxToPcrViewModel : ObservableObject
                                             curve.CurvePoint[num28].Y = 0.0;
                                         }
 
-                                    for (var num30 = 0; num30 < 3; num30++) curve = MathCommon.CurveSmooth(curve);
+                                    for (var num30 = 0; num30 < 3; num30++) curve = await MathCommon.CurveSmooth(curve);
                                 }
                                 else
                                 {
@@ -966,7 +979,7 @@ public partial class XlsxToPcrViewModel : ObservableObject
             }
         }
 
-        await Task.Delay(1);
+        await Task.Delay(0);
     }
 
 
@@ -1055,7 +1068,7 @@ public partial class XlsxToPcrViewModel : ObservableObject
                 Experiment.Device.StopTime = Convert.ToDateTime(sheet.GetRow(2).GetCell(1).StringCellValue);
 
             Experiment.Device.RS232Port.DeviceNo = sheet.GetRow(endRaw + 3).GetCell(1).ToString();
-            await Task.Delay(1);
+            await Task.Delay(0);
         }
     }
 
@@ -1152,7 +1165,8 @@ public partial class XlsxToPcrViewModel : ObservableObject
                         if (!RealtimeCal && sampleTargetItem.Result.RawCurve.CurvePoint.Count < count &&
                             sampleTargetItem.Result.RawCurve.CurvePoint.Count >= 3)
                         {
-                            sampleTargetItem.Result.RawCurve = MathCommon.CurveInsert(sampleTargetItem.Result.RawCurve,
+                            sampleTargetItem.Result.RawCurve = await MathCommon.CurveInsert(
+                                sampleTargetItem.Result.RawCurve,
                                 1.0,
                                 (double)count, 1.0);
 
@@ -1176,76 +1190,78 @@ public partial class XlsxToPcrViewModel : ObservableObject
     /// <param name="isMeltingRawData"></param>
     public async Task GetRawData(bool RealtimeCal, bool isMeltingRawData)
     {
-        Experiment = Experiment.Load(PcrPath, false);
-
-        #region GetRawData
-
-        List<FluorescenceData[,]> list;
-        if (isMeltingRawData)
-            list = Experiment.Device.RawMeltingData;
-        else
-            list = Experiment.Device.RawData;
-
-        var array = new List<double>[96, 6];
-        for (var n = 0; n < 96; n++)
-        for (var j = 0; j < 6; j++)
-            array[n, j] = new List<double>();
-
-        int i;
-        Func<int, bool> qq90 = null;
-        Func<int, bool> qq91 = null;
-        for (i = 0; i < list.Count; i++)
+        await Task.Run(() =>
         {
-            var array2 = list[i];
-            for (var k = 0; k < 96; k++)
-            for (var l = 0; l < 6; l++)
+            Experiment = Experiment.Load(PcrPath, false);
+
+            #region GetRawData
+
+            List<FluorescenceData[,]> list;
+            if (isMeltingRawData)
+                list = Experiment.Device.RawMeltingData;
+            else
+                list = Experiment.Device.RawData;
+
+            var array = new List<double>[96, 6];
+            for (var n = 0; n < 96; n++)
+            for (var j = 0; j < 6; j++)
+                array[n, j] = new List<double>();
+
+            int i;
+            Func<int, bool> qq90 = null;
+            Func<int, bool> qq91 = null;
+            for (i = 0; i < list.Count; i++)
             {
-                var num = DeviceUtility.Conversion(array2[k, l]);
-                var badPoint = Experiment.BadPoints[k.ToString("00") + (l + 1)] as BadPoint;
-                if (badPoint != null)
+                var array2 = list[i];
+                for (var k = 0; k < 96; k++)
+                for (var l = 0; l < 6; l++)
                 {
-                    if (isMeltingRawData)
+                    var num = DeviceUtility.Conversion(array2[k, l]);
+                    var badPoint = Experiment.BadPoints[k.ToString("00") + (l + 1)] as BadPoint;
+                    if (badPoint != null)
                     {
-                        IEnumerable<int> rawMeltPoints = badPoint.RawMeltPoints;
-                        Func<int, bool> func;
-                        if ((func = qq90) == null) func = qq90 = s => s == i;
+                        if (isMeltingRawData)
+                        {
+                            IEnumerable<int> rawMeltPoints = badPoint.RawMeltPoints;
+                            Func<int, bool> func;
+                            if ((func = qq90) == null) func = qq90 = s => s == i;
 
-                        if (rawMeltPoints.Where(func).Count() != 0) num = -100.0;
+                            if (rawMeltPoints.Where(func).Count() != 0) num = -100.0;
+                        }
+                        else
+                        {
+                            IEnumerable<int> rawPoints = badPoint.RawPoints;
+                            Func<int, bool> func2;
+                            if ((func2 = qq91) == null) func2 = qq91 = s => s == i;
+
+                            if (rawPoints.Where(func2).Count() != 0) num = -100.0;
+                        }
                     }
-                    else
+
+                    if (Experiment.Device.Calibration.Count == 6)
                     {
-                        IEnumerable<int> rawPoints = badPoint.RawPoints;
-                        Func<int, bool> func2;
-                        if ((func2 = qq91) == null) func2 = qq91 = s => s == i;
-
-                        if (rawPoints.Where(func2).Count() != 0) num = -100.0;
+                        var array3 = Experiment.Device.Calibration[l];
+                        if (array3.Count() == 98 && num > -50.0 && array3[k] != 255 && array3[k] != 0 &&
+                            Experiment.Device.DarkCurrent[l] != 255)
+                        {
+                            var num2 = array3[k] / 100.0;
+                            var num3 = (array3[96] * 256 + array3[97]) / 1000.0;
+                            num = (num - Experiment.Device.DarkCurrent[l] / 10.0) * num2 * num3;
+                        }
                     }
+
+                    if (num > -50.0 && num < 0.1) num = 0.1;
+
+                    array[k, l].Add(num);
                 }
-
-                if (Experiment.Device.Calibration.Count == 6)
-                {
-                    var array3 = Experiment.Device.Calibration[l];
-                    if (array3.Count() == 98 && num > -50.0 && array3[k] != 255 && array3[k] != 0 &&
-                        Experiment.Device.DarkCurrent[l] != 255)
-                    {
-                        var num2 = array3[k] / 100.0;
-                        var num3 = (array3[96] * 256 + array3[97]) / 1000.0;
-                        num = (num - Experiment.Device.DarkCurrent[l] / 10.0) * num2 * num3;
-                    }
-                }
-
-                if (num > -50.0 && num < 0.1) num = 0.1;
-
-                array[k, l].Add(num);
             }
-        }
 
-        RawCurveCal(array, false, "调整前");
+            Task.Run(() => { RawCurveCal(array, false, "调整前"); });
 
-        RawData = array;
-        await Task.Delay(1);
+            RawData = array;
 
-        #endregion
+            #endregion
+        });
     }
 }
 
@@ -1264,21 +1280,21 @@ public class MathCommon
     }
 
     // Token: 0x06000047 RID: 71 RVA: 0x00009688 File Offset: 0x00007888
-    internal static double Insert(double x0, double x1, double x2, double y0, double y1, double y2, double x)
+    internal static Task<double> Insert(double x0, double x1, double x2, double y0, double y1, double y2, double x)
     {
-        if (x == x0) return y0;
+        if (x == x0) return Task.FromResult(y0);
 
-        if (x == x1) return y1;
+        if (x == x1) return Task.FromResult(y1);
 
-        if (x == x2) return y2;
+        if (x == x2) return Task.FromResult(y2);
 
-        return (x - x0) * (x - x1) * (x - x2) * (y0 / ((x0 - x1) * (x0 - x2) * (x - x0)) +
-                                                 y1 / ((x1 - x0) * (x1 - x2) * (x - x1)) +
-                                                 y2 / ((x2 - x0) * (x2 - x1) * (x - x2)));
+        return Task.FromResult((x - x0) * (x - x1) * (x - x2) * (y0 / ((x0 - x1) * (x0 - x2) * (x - x0)) +
+                                                                 y1 / ((x1 - x0) * (x1 - x2) * (x - x1)) +
+                                                                 y2 / ((x2 - x0) * (x2 - x1) * (x - x2))));
     }
 
     // Token: 0x06000048 RID: 72 RVA: 0x000096EC File Offset: 0x000078EC
-    internal static void Baseline(int bb, int ee, Curve curve)
+    internal static async Task Baseline(int bb, int ee, Curve curve)
     {
         if (bb == ee) return;
 
@@ -1319,7 +1335,7 @@ public class MathCommon
     }
 
     // Token: 0x0600004B RID: 75 RVA: 0x0000992C File Offset: 0x00007B2C
-    internal static Curve CurveSmooth(Curve curve)
+    internal static Task<Curve> CurveSmooth(Curve curve)
     {
         var array = new double[] { 31.0, 9.0, -3.0, -5.0, 3.0 };
         var array2 = new double[] { 9.0, 13.0, 12.0, 6.0, -5.0 };
@@ -1327,7 +1343,7 @@ public class MathCommon
         var array4 = new double[] { -5.0, 6.0, 12.0, 13.0, 9.0 };
         var array5 = new double[] { 3.0, -5.0, -3.0, 9.0, 31.0 };
         var count = curve.CurvePoint.Count;
-        if (count < 10) return curve;
+        if (count < 10) return Task.FromResult(curve);
 
         var curve2 = new Curve();
         for (var i = 0; i < count; i++)
@@ -1369,7 +1385,7 @@ public class MathCommon
             curve2.CurvePoint.Add(dot);
         }
 
-        return curve2;
+        return Task.FromResult(curve2);
     }
 
     // Token: 0x0600004C RID: 76 RVA: 0x00009AA4 File Offset: 0x00007CA4
@@ -1550,7 +1566,7 @@ public class MathCommon
     }
 
     // Token: 0x06000050 RID: 80 RVA: 0x00009FF4 File Offset: 0x000081F4
-    public static Curve CurveInsert(Curve curve, double begin, double end, double interval)
+    public static async Task<Curve> CurveInsert(Curve curve, double begin, double end, double interval)
     {
         var count = curve.CurvePoint.Count;
         if (count < 6) return curve;
@@ -1577,7 +1593,7 @@ public class MathCommon
 
             var dot = new Dot();
             dot.X = begin;
-            dot.Y = Insert(array[num2], array[num2 + 1], array[num2 + 2], array2[num2], array2[num2 + 1],
+            dot.Y = await Insert(array[num2], array[num2 + 1], array[num2 + 2], array2[num2], array2[num2 + 1],
                 array2[num2 + 2], begin);
             curve2.CurvePoint.Add(dot);
             begin += interval;

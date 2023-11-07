@@ -135,6 +135,7 @@
                     <ProgressBar
                         Grid.Row="2"
                         Grid.Column="1"
+                        Height="35"
                         Maximum="100"
                         Minimum="0"
                         Value="{Binding Schedule}" />
