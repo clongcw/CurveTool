@@ -79,19 +79,19 @@ public partial class XlsxToExpViewModel : ObservableObject
         }
 
         // 指定要读取的工作表名称
-        var listSheet = new List<string> { "Raw Data", "Calibrated Data", "Amplification Data" };
-        var json = File.ReadAllText(ExpPath);
-        foreach (var sheetName in listSheet)
+        List<string> listSheet = new List<string> { "Raw Data", "Calibrated Data", "Amplification Data" };
+        string json = File.ReadAllText(ExpPath);
+        foreach (string sheetName in listSheet)
             try
             {
                 // 使用FileStream打开Excel文件
-                using (var fs = new FileStream(ExcelPath, FileMode.Open, FileAccess.ReadWrite))
+                using (FileStream fs = new FileStream(ExcelPath, FileMode.Open, FileAccess.ReadWrite))
                 {
                     // 使用XSSFWorkbook打开.xlsx文件（如果是.xls文件，使用HSSFWorkbook）
-                    IWorkbook workbook = new XSSFWorkbook(fs);
+                    IWorkbook workbook = new XSSFWorkbook(fs); 
 
                     // 获取指定工作表
-                    var sheet = workbook.GetSheet(sheetName);
+                    ISheet sheet = workbook.GetSheet(sheetName);
 
                     if (sheet != null)
                     {
@@ -99,22 +99,22 @@ public partial class XlsxToExpViewModel : ObservableObject
 
                         // 获取指定sheet的内容并添加到list集合
                         // 遍历列
-                        for (var columnIndex = 1; columnIndex < sheet.GetRow(0).LastCellNum; columnIndex++)
+                        for (int columnIndex = 1; columnIndex < sheet.GetRow(0).LastCellNum; columnIndex++)
                         {
-                            var data = "-1," + sheet.GetRow(0).GetCell(columnIndex) + ",";
+                            string data = "-1," + sheet.GetRow(0).GetCell(columnIndex) + ",";
                             // 遍历行
-                            for (var row = 1; row <= sheet.LastRowNum; row++)
+                            for (int row = 1; row <= sheet.LastRowNum; row++)
                             {
-                                var currentRow = sheet.GetRow(row);
+                                IRow currentRow = sheet.GetRow(row);
 
                                 if (currentRow != null)
                                 {
-                                    var cell = currentRow.GetCell(columnIndex);
+                                    ICell cell = currentRow.GetCell(columnIndex);
 
                                     if (cell != null)
                                     {
                                         // 获取单元格的值（假设它是文本）
-                                        var cellValue = Convert.ToDouble(cell.ToString()).ToString("F3") + " ";
+                                        string cellValue = Convert.ToDouble(cell.ToString()).ToString("F3") + " ";
                                         data += cellValue;
                                     }
                                 }
@@ -124,8 +124,8 @@ public partial class XlsxToExpViewModel : ObservableObject
                         }
 
                         // 使用正则表达式查找目标 JSON 结构
-                        var pattern = $@"\{{[^{{}}]*""Name"":\s*""{sheetName}""[^{{}}]*\}}";
-                        var match = Regex.Match(json, pattern, RegexOptions.Singleline);
+                        string pattern = $@"\{{[^{{}}]*""Name"":\s*""{sheetName}""[^{{}}]*\}}";
+                        Match match = Regex.Match(json, pattern, RegexOptions.Singleline);
                         if (match.Success)
                         {
                             // 获取匹配的 JSON 结构
@@ -165,7 +165,7 @@ public partial class XlsxToExpViewModel : ObservableObject
             }
 
         // 保存更新后的文本文件
-        File.WriteAllText(NewExpPath, json);
+        File.WriteAllTextAsync(NewExpPath, json);
         MessageBoxX.Show(Application.Current.MainWindow, "新Exp文件已生成！", "提示", MessageBoxButton.OK,
             MessageBoxIcon.Success, DefaultButton.YesOK, 5);
     }
